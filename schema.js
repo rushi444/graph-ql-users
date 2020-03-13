@@ -1,19 +1,47 @@
 const graphql = require('graphql');
-const _ = require('lodash');
-const { GraphQLObjectType, GraphQLString, GraphQLInt, GraphQLSchema } = graphql;
+const axios = require('axios');
+const {
+  GraphQLObjectType,
+  GraphQLString,
+  GraphQLInt,
+  GraphQLSchema,
+  GraphQLList,
+} = graphql;
 
-const users = [
-  { id: '23', firstName: 'Bill', age: 20 },
-  { id: '47', firstName: 'Samantha', age: 32 },
-];
+const CompanyType = new GraphQLObjectType({
+  name: 'Company',
+  fields: () => ({
+    id: { type: GraphQLString },
+    name: { type: GraphQLString },
+    description: { type: GraphQLString },
+    users: {
+      type: new GraphQLList(UserType),
+      async resolve(parentValue, args) {
+        const res = await axios.get(
+          `http://localhost:3000/companies/${parentValue.id}/users`,
+        );
+        return res.data;
+      },
+    },
+  }),
+});
 
 const UserType = new GraphQLObjectType({
   name: 'User',
-  fields: {
+  fields: () => ({
     id: { type: GraphQLString },
     firstName: { type: GraphQLString },
     age: { type: GraphQLInt },
-  },
+    company: {
+      type: CompanyType,
+      async resolve(parentValue, args) {
+        const res = await axios.get(
+          `http://localhost:3000/companies/${parentValue.companyId}`,
+        );
+        return res.data;
+      },
+    },
+  }),
 });
 
 const RootQuery = new GraphQLObjectType({
@@ -22,8 +50,19 @@ const RootQuery = new GraphQLObjectType({
     user: {
       type: UserType,
       args: { id: { type: GraphQLString } },
-      resolve(parentValue, args) {
-        return _.find(users, { id: args.id });
+      async resolve(parentValue, args) {
+        const res = await axios.get(`http://localhost:3000/users/${args.id}`);
+        return res.data;
+      },
+    },
+    company: {
+      type: CompanyType,
+      args: { id: { type: GraphQLString } },
+      async resolve(parentValue, args) {
+        const res = await axios.get(
+          `http://localhost:3000/companies/${args.id}`,
+        );
+        return res.data;
       },
     },
   },
